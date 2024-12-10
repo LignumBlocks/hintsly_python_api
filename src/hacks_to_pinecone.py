@@ -14,7 +14,6 @@ from pinecone import Pinecone, ServerlessSpec
 from langchain_core.documents import Document
 from langchain_google_genai import GoogleGenerativeAIEmbeddings 
 from langchain_pinecone import PineconeVectorStore
-from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 import handle_hintsly_api as hapi
 
@@ -53,15 +52,6 @@ def store_hacks_embeddings(hacks: List[Dict]):
     vector_store.add_documents(documents=documents, ids=ids)
     return stored_hacks
 
-def remove_documents(ids: List):
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004", 
-                                            task_type="clustering", 
-                                            google_api_key=FREE_GOOGLE_API_KEY)
-    
-    pc = Pinecone(api_key=PINECONE_API_KEY)
-    index = pc.Index(INDEX_NAME)
-    vector_store = PineconeVectorStore(index=index, embedding=embeddings)
-    vector_store.delete(ids)
 
 def preprocess_hack(hack: Dict) -> Document:
     """
