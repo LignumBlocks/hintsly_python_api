@@ -120,7 +120,6 @@ def perform_dbscan(data, eps, min_samples, pca_components=None, log_dir=None):
         save_plot(fig, "dbscan_clusters")
     return labels
 
-
 def tune_dbscan_hyperparameters(data, eps_range, min_samples_range, pca_components=None, log_dir=None):
     """Tunes DBSCAN hyperparameters using silhouette score (if possible)."""
     results = {}  # Store results for plotting
@@ -157,6 +156,7 @@ def tune_dbscan_hyperparameters(data, eps_range, min_samples_range, pca_componen
     ax.set_title('DBSCAN Silhouette Scores')
     plt.xticks(eps_range)
     plt.yticks(min_samples_range)
+    save_plot(fig, "dbscan_silhouette_scores")
     plt.show()
 
 

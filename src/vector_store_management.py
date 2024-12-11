@@ -53,9 +53,7 @@ class VS_Manager:
                 all_ids.append(id)
         # print(len(all_ids))
         return all_ids
-        # print(index.describe_index_stats())
-        # return list(index.list())
-    def get_by_ids(self, ids:List[str]):
+    def get_by_ids(self, ids:List[str]) -> Dict[str, Dict[str, dict|list]]:
         response = self.index.fetch(ids)
         result = {}
         if 'vectors' in response:  # Check if vectors are present in response
@@ -63,6 +61,15 @@ class VS_Manager:
                 metadata:Dict = record_data['metadata']
                 result[record_id] = {'metadata': metadata, 'vector':record_data['values']}
         return result
+    def get_all_data(self) -> Dict[str, Dict[str, dict|list]]:
+        response = self.index.fetch(self.get_all_ids())
+        result = {}
+        if 'vectors' in response:  # Check if vectors are present in response
+            for record_id, record_data in response['vectors'].items():
+                metadata = record_data['metadata']
+                result[record_id] = {'metadata': metadata, 'vector':record_data['values']}
+        return result
+
     def get_by_filter(self, filter:Dict[str, str | bool | List] | None = None):
         response = self.index.query(vector=[0]*768, filter=filter,
                                     top_k=UPPER_LIMIT_NO_EMBED,
