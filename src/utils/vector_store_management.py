@@ -12,8 +12,8 @@ from langchain_pinecone import PineconeVectorStore
 load_dotenv()
 FREE_GOOGLE_API_KEY = os.getenv('FREE_GOOGLE_API_KEY')
 EMBEDDING_MODELS = ['models/embedding-001', 'models/text-embedding-004']
-PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")  # Replace with your Pinecone API key or store it in an env variable
-PINECONE_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT")  # Replace with your Pinecone environment
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")  
+PINECONE_ENVIRONMENT = os.getenv("PINECONE_ENVIRONMENT")  
 INDEX_NAME = os.getenv("PINECONE_INDEX")
 UPPER_LIMIT_NO_EMBED = 500
 
@@ -75,11 +75,11 @@ class VS_Manager:
                                     top_k=UPPER_LIMIT_NO_EMBED,
                                     include_metadata=True)
         matching_ids = [match['id'] for match in response['matches']]
-        print(matching_ids)
-        if matching_ids:  #Check if there are IDs to fetch
+        print(f"ids matching filter: {filter}\n\t{matching_ids}")
+        if matching_ids:  # Check if there are IDs to fetch
             return self.get_by_ids(matching_ids)
         else:
-            return [] #Return empty list if no matches
+            return {} # Return empty if no matches
     
     def retrieve_k(self, query, k=5, filter=None) -> List[Document]:
         """Query embeddings from the Pinecone index."""

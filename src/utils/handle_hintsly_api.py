@@ -2,7 +2,7 @@ import os
 import requests
 import time
 from typing import List, Dict
-import core
+import utils.core as core
 
 # ================== Configuration ==================
 # Base URL of the API
