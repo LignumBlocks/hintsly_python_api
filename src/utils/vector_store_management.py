@@ -69,8 +69,7 @@ class VS_Manager:
                 metadata = record_data['metadata']
                 result[record_id] = {'metadata': metadata, 'vector':record_data['values']}
         return result
-
-    def get_by_filter(self, filter:Dict[str, str | bool | List] | None = None):
+    def get_by_filter(self, filter:dict | None = None):
         response = self.index.query(vector=[0]*768, filter=filter,
                                     top_k=UPPER_LIMIT_NO_EMBED,
                                     include_metadata=True)

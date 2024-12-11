@@ -3,6 +3,7 @@ from typing import List, Dict, Tuple
 
 import utils.clustering as clustering
 import utils.vector_store_management as vsm
+import utils.core as core
 
 def prepare_data_for_clustering(data_from_pinecone: Dict[str, Dict[str, dict|list]]) -> Tuple[np.ndarray, list, list]:
     """
@@ -28,10 +29,9 @@ def prepare_data_for_clustering(data_from_pinecone: Dict[str, Dict[str, dict|lis
 
     return np.array(vectors), ids, metadata
 
-
-def cluster_and_annotate(vectors: np.ndarray, ids: list, metadata: list, n_clusters: int) -> list:
+def annotate_clustering_results(ids: list, metadata: list, labels) -> list:
     """
-    Performs clustering and annotates the results with IDs and metadata.
+    Annotates the clustering results with IDs and metadata.
 
     Args:
         vectors: The NumPy array of vectors.
@@ -42,29 +42,68 @@ def cluster_and_annotate(vectors: np.ndarray, ids: list, metadata: list, n_clust
     Returns:
         A list of dictionaries, where each dictionary contains 'id', 'metadata', and 'cluster'.
     """
-    kmeans = KMeans(n_clusters=n_clusters, random_state=0) #Example using KMeans, change as needed
-    labels = kmeans.fit_predict(vectors)
-
+    assert(len(labels) == len(ids))
     clustered_data = []
     for i, label in enumerate(labels):
+        assert(ids[i] == metadata[i]['id'])
         clustered_data.append({
             'id': ids[i],
             'metadata': metadata[i],
             'cluster': label
         })
-
     return clustered_data
 
-#Example Usage:
-pinecone_data = get_all_data() #Get the data from your function
-vectors, ids, metadata = prepare_data_for_clustering(pinecone_data)
+def pipeline1():
+    """
+    To ensure coherence and relevance it is proposed to group hacks based on the predefined tags. 
+    The grouping process will follow a prioritized hierarchy:
 
-#Perform clustering
-clustered_results = cluster_and_annotate(vectors, ids, metadata, n_clusters=5)  # Adjust n_clusters as needed
+    1. Group by 'Financial Goals'. We would get 4 groups with hacks appearing in at least one and possibly various.
 
-#Now you can process clustered_results.  It's a list of dictionaries, and you can easily group by cluster
-for cluster_label in range(5): #Replace 5 with your actual number of clusters.
-    cluster_items = [item for item in clustered_results if item['cluster'] == cluster_label]
-    print(f"Cluster {cluster_label}:")
-    for item in cluster_items:
-        print(f"  ID: {item['id']}, Metadata: {item['metadata']}")
+    2. For each of those groups I would like to determine 5 subgroups, one for each 'Audience and Life Stage'. 
+
+    In the end we would get 20 groups, each containing all the hacks that target the same goal and audience. 
+    Under the hypothesis that this will cover relatedness, we must search for clusters of sizes from 2-10 (with a normal distribution centered around 4 or 5).
+    
+    For all the acceptable clusters inside of the 20 groups we must test them with LLMs to validate or refute the possibility of a SuperHack.
+    Then, in a global (shared by the 20 groups) place store the groups of hacks that were tested together, regardless if they could form a SuperHack or not. 
+    So afterwards we can check first if a set of hacks has already been tested, to not repeat the SuperHack check.
+
+    To create the 20 groups we wil use the function VS_Manager.get_by_filter(filter) ; where the filter is an and including a category from 'Audience and Life Stage' and one from 'Financial Goals'.
+    The filters must look like: `filter = {"$and": [{"Financial Goals": "Debt Reduction"}, {"Audience and Life Stage": "Families"} ]}`
+    ```
+    """
+    def generate_filters() -> List[Dict]:
+        """Generates all filter combinations for Financial Goals and Audience and Life Stage."""
+        categories = core.HACKS_CLASSIFICATIONS_CATEGORIES
+        financial_goals = [goal for goal in categories["Financial Goals"]["categories"] if goal != categories["Financial Goals"]["exclude"]]
+        audience_stages = categories["Audience and Life Stage"]["categories"]
+
+        filters = []
+        for goal in financial_goals:
+            for audience in audience_stages:
+                filter = {"$and": [{"Financial Goals": goal}, {"Audience and Life Stage": audience}]}
+                filters.append(filter)
+
+        assert(len(filter) == 20)
+        return filters
+    
+    def fetch_hack_groups(filters: List[Dict]) -> Dict[str, Dict]:
+        """Fetches hack groups using the provided filters."""
+        hack_groups = {}
+        for filter in filters:
+            goal = filter["$and"][0]["Financial Goals"]
+            audience = filter["$and"][1]["Audience and Life Stage"]
+            group_key = f"{goal}-{audience}" # Create a unique key for each group
+            vs_manager = vsm.VS_Manager()
+            hacks = vs_manager.get_by_filter(filter) # Fetch hacks using the filter
+            hack_groups[group_key] = hacks
+        return hack_groups
+
+    hack_groups = fetch_hack_groups(generate_filters())
+    hack_group_clusters = {}
+    for group_key, group_data in hack_groups.items():
+        vectors, ids, metadata = prepare_data_for_clustering(group_data)
+        labels = clustering.perform_best_clustering(vectors, '')
+        clustered_data = annotate_clustering_results(ids, metadata, labels)
+        hack_group_clusters[group_key] = clustered_data

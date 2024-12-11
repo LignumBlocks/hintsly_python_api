@@ -6,7 +6,9 @@ from sklearn.cluster import KMeans, DBSCAN
 from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_samples, silhouette_score
 from kneed import KneeLocator #For elbow method
+
 LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'log')
+# LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'log')
 
 def save_plot(fig, filename):
     """Saves a Matplotlib figure to the log directory."""
@@ -69,7 +71,7 @@ def perform_kmeans(data, n_clusters, pca_components=None, process_name='', log_d
         fig, ax = plt.subplots()
         ax.scatter(data[:, 0], data[:, 1], c=labels) #Assumes 2D data or first 2 components from PCA
         ax.set_title(f"KMeans Clustering (k={n_clusters}, Silhouette Score={silhouette_avg:.2f})")
-        save_plot(fig, "kmeans_clusters")
+        save_plot(fig, f"kmeans_clusters_{process_name}")
     return labels
 
 def find_optimal_k_kmeans(data, max_k=10, pca_components=None, log_dir=None):
@@ -100,7 +102,7 @@ def find_optimal_k_kmeans(data, max_k=10, pca_components=None, log_dir=None):
 
     return optimal_k
 
-def perform_dbscan(data, eps, min_samples, pca_components=None, log_dir=None):
+def perform_dbscan(data, eps, min_samples, pca_components=None, process_name='', log_dir=None):
     """Performs DBSCAN clustering with optional PCA."""
 
     if pca_components:
@@ -116,8 +118,8 @@ def perform_dbscan(data, eps, min_samples, pca_components=None, log_dir=None):
         # if pca_components:
         fig, ax = plt.subplots()
         ax.scatter(data[:, 0], data[:, 1], c=labels) #Assumes 2D data or first 2 components from PCA
-        ax.set_title(f"DBSCAN Clustering (eps={eps}, min_samples={min_samples})")
-        save_plot(fig, "dbscan_clusters")
+        ax.set_title(f"DBSCAN Clustering (2eps={eps}, min_samples={min_samples})")
+        save_plot(fig, f"dbscan_clusters_{process_name}")
     return labels
 
 def tune_dbscan_hyperparameters(data, eps_range, min_samples_range, pca_components=None, log_dir=None):
@@ -174,7 +176,8 @@ def tune_dbscan_hyperparameters(data, eps_range, min_samples_range, pca_componen
 
     return best_eps, best_min_samples, best_labels
 
-
+def perform_best_clustering(data, process_name):
+    pass
 # #Generate some sample 2D data (replace with your actual data)
 # np.random.seed(0)
 # data = np.random.rand(100, 2) * 10  #100 samples, 2 features
