@@ -32,3 +32,21 @@ class Base_LLM:
         prompt = ChatPromptTemplate.from_messages([SystemMessage(content=system_prompt), HumanMessage(content=user_input)])
         response = self.llm.invoke(prompt)
         return response.content
+
+
+def load_prompt(*args):
+    """
+    Constructs a prompt by loading the content from one or more prompt template files in the prompts directory.
+
+    Args:
+        args (str): The file paths of the prompt templates to load.
+
+    Returns:
+        str: The combined content of the loaded prompt templates.
+    """
+
+    prompt = ""
+    for file_path in args:
+        with open(file_path, "r") as file:
+            prompt += file.read().strip()
+    return prompt
