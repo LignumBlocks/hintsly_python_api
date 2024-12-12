@@ -7,7 +7,7 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_samples, silhouette_score
 from kneed import KneeLocator #For elbow method
 
-LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'log')
+LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),'log')
 # LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'log')
 
 def save_plot(fig, filename):
@@ -53,6 +53,7 @@ def plot_kmeans_silhouette(data, labels, n_clusters, silhouette_avg, name):
     ax1.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1])
 
     save_plot(fig, f"{name}_kmeans_silhouette")
+
 
 def perform_kmeans(data, n_clusters, pca_components=None, process_name='', log_dir=None):
     """Performs KMeans clustering with optional PCA."""
@@ -102,6 +103,63 @@ def find_optimal_k_kmeans(data, max_k=10, pca_components=None, log_dir=None):
 
     return optimal_k
 
+def plot_dbscan_silhouette(data, labels, name):
+    """Generates and saves the silhouette plot for DBSCAN."""
+    
+    # Get unique labels (clusters)
+    unique_labels = set(labels)
+    
+    # Exclude noise points
+    if -1 in unique_labels:
+        unique_labels.remove(-1)
+    
+    n_clusters = len(unique_labels)
+    
+    # If there are no clusters, return early
+    if n_clusters == 0:
+        print("No clusters found.")
+        return
+    
+    # Calculate silhouette scores
+    silhouette_avg = silhouette_score(data, labels)
+    sample_silhouette_values = silhouette_samples(data, labels)
+
+    fig, ax1 = plt.subplots(1, 1)
+    fig.set_size_inches(18, 7)
+
+    ax1.set_xlim([-0.1, 1])
+    ax1.set_ylim([0, len(data) + (n_clusters + 1) * 10])
+
+    y_lower = 10
+    for i in unique_labels:
+        ith_cluster_silhouette_values = sample_silhouette_values[labels == i]
+        ith_cluster_silhouette_values.sort()
+        size_cluster_i = ith_cluster_silhouette_values.shape[0]
+        y_upper = y_lower + size_cluster_i
+
+        color = plt.cm.nipy_spectral(float(i) / n_clusters)
+        ax1.fill_betweenx(
+            np.arange(y_lower, y_upper),
+            0,
+            ith_cluster_silhouette_values,
+            facecolor=color,
+            edgecolor=color,
+            alpha=0.7,
+        )
+
+        ax1.text(-0.05, y_lower + 0.5 * size_cluster_i, str(i))
+        y_lower = y_upper + 10
+
+    ax1.set_title(f"Silhouette plot for DBSCAN (Clusters={n_clusters}, Silhouette Score={silhouette_avg:.2f})")
+    ax1.set_xlabel("Silhouette coefficient values")
+    ax1.set_ylabel("Cluster label")
+    ax1.axvline(x=silhouette_avg, color="red", linestyle="--")
+    ax1.set_yticks([])
+    ax1.set_xticks([-0.1, 0, 0.2, 0.4, 0.6, 0.8, 1])
+
+    save_plot(fig, f"{name}_dbscan_silhouette")
+    plt.show()  # Display the plot
+
 def perform_dbscan(data, eps, min_samples, pca_components=None, process_name='', log_dir=None):
     """Performs DBSCAN clustering with optional PCA."""
 
@@ -115,10 +173,11 @@ def perform_dbscan(data, eps, min_samples, pca_components=None, process_name='',
 
     if log_dir:  #Save data & plots
         np.save(os.path.join(log_dir, f"{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}_dbscan_labels.npy"), labels)
+        plot_dbscan_silhouette(data, labels, process_name)
         # if pca_components:
         fig, ax = plt.subplots()
         ax.scatter(data[:, 0], data[:, 1], c=labels) #Assumes 2D data or first 2 components from PCA
-        ax.set_title(f"DBSCAN Clustering (2eps={eps}, min_samples={min_samples})")
+        ax.set_title(f"DBSCAN Clustering (eps={eps}, min_samples={min_samples})")
         save_plot(fig, f"dbscan_clusters_{process_name}")
     return labels
 
@@ -177,7 +236,8 @@ def tune_dbscan_hyperparameters(data, eps_range, min_samples_range, pca_componen
     return best_eps, best_min_samples, best_labels
 
 def perform_best_clustering(data, process_name):
-    pass
+    dbscan_labels = perform_dbscan(data, 0.7, 6, pca_components=434, process_name='exec_best_cluster', log_dir=LOG_DIR)
+    
 # #Generate some sample 2D data (replace with your actual data)
 # np.random.seed(0)
 # data = np.random.rand(100, 2) * 10  #100 samples, 2 features
