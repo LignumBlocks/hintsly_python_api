@@ -85,6 +85,3 @@ class VS_Manager:
         return self.vector_store.similarity_search(query, k=k, filter=filter)
     def retrieve_k_score(self, query, k=5, filter=None) -> List[Tuple[Document, float]]:
         return self.vector_store.similarity_search_with_score(query, k=k, filter=filter)
-    
-vs = VS_Manager()
-print(vs.get_by_filter({'Financial Goals':{"$in":['Wealth Building','Income Generation']}}))
