@@ -1,4 +1,5 @@
 import os
+import pickle
 import json
 import numpy as np
 import random
@@ -11,12 +12,15 @@ import utils.core as core
 import utils.base_llm as base_llm
 
 SUPERHACK_DIR = os.path.dirname(os.path.abspath(__file__))
-SRC_DIR = os.path.dirname(SUPERHACK_DIR)                    
-PROMPT_DIR = os.path.join(SRC_DIR, 'prompts') 
+SRC_DIR = os.path.dirname(SUPERHACK_DIR)               
+BASE_DIR = os.path.dirname(SRC_DIR)       
+PROMPT_DIR = os.path.join(BASE_DIR, 'data', 'prompts') 
 PROMPTS_TEMPLATES = {
     'CHECK_FEASIBILITY':os.path.join(PROMPT_DIR, "generic_superhack"),
     'CHECK_FEASIBILITY_SYSTEM':os.path.join(PROMPT_DIR, "generic_superhack_system"),
+    'SUPERHACK_STRUCTURE':os.path.join(PROMPT_DIR, "superhack_fields"),
 }
+HACK_GROUPS = os.path.join(BASE_DIR, 'data', 'files', "hack_groups.bin")
 
 def prepare_data_for_clustering(data_from_pinecone: Dict[str, Dict[str, dict|list]]) -> Tuple[np.ndarray, list, list]:
     """
@@ -38,6 +42,7 @@ def prepare_data_for_clustering(data_from_pinecone: Dict[str, Dict[str, dict|lis
     for record_id, record_data in data_from_pinecone.items():
         ids.append(record_id)
         vectors.append(record_data['vector'])
+        record_data['metadata']['id'] = str(int(record_data['metadata']['id']))
         metadata.append(record_data['metadata'])
 
     return np.array(vectors), ids, metadata
@@ -60,11 +65,12 @@ def annotate_clustering_results(vectors: list, ids: list, metadata: list, labels
     cluster_data = {}
     data_with_labels = {}
     for i, label in enumerate(labels):
+        # print(metadata[i], ids[i])
         assert(ids[i] == metadata[i]['id'])
         if label not in cluster_data:
             cluster_data[label] = []
-        cluster_data[label].append({ 'id': ids[i], 'metadata': metadata[i], 'vectors': vectors})
-        data_with_labels[ids[i]] = { 'metadata': metadata[i], 'vectors': vectors, 'cluster': label }
+        cluster_data[label].append({ 'id': ids[i], 'metadata': metadata[i], 'vector': vectors[i]})
+        data_with_labels[ids[i]] = { 'metadata': metadata[i], 'vector': vectors[i], 'cluster': label }
     return cluster_data, data_with_labels
 
 def check_feasibility(hack_descriptions: str):
@@ -72,13 +78,36 @@ def check_feasibility(hack_descriptions: str):
     prompt = prompt_template.format(group_of_hacks=hack_descriptions)
     system_prompt = base_llm.load_prompt(PROMPTS_TEMPLATES['CHECK_FEASIBILITY_SYSTEM'])
     model = base_llm.Base_LLM()
-    result = model.run(prompt, system_prompt)
-    cleaned_string = result.replace("```json\n", "").replace("```","")
-    cleaned_string = cleaned_string.strip()
-    json_result =  json.loads(cleaned_string)
-    return json_result
+    retries = 0
+    while retries < 3:
+        try:
+            result = model.run(prompt, system_prompt)
+            # cleaned_string = result.replace("```json\n", "").replace("```","")
+            cleaned_string = result.strip()
+            json_result =  json.loads(cleaned_string)
+            return json_result
+        except (Exception) as e:  #Catch more general exceptions
+            print(f"Error during LLM call or JSON parsing (attempt {retries+1}/{3}): {e}")
+            retries += 1
+
+def superhack_structure(hack_descriptions: str, superhack_analysis: str):
+    prompt_template = base_llm.load_prompt(PROMPTS_TEMPLATES['SUPERHACK_STRUCTURE'])    
+    prompt = prompt_template.format(hack_descriptions=hack_descriptions, superhack_analysis=superhack_analysis)
+    model = base_llm.Base_LLM()
+    retries = 0
+    while retries < 3:
+        try:
+            result = model.run(prompt)
+            # cleaned_string = result.replace("```json\n", "").replace("```","")
+            cleaned_string = result.strip()
+            json_result =  json.loads(cleaned_string)
+            return json_result
+        except (Exception) as e:  #Catch more general exceptions
+            print(f"Error during LLM call or JSON parsing (attempt {retries+1}/{3}): {e}")
+            retries += 1
 
 def generate_superhack(metadata, candidates_ids):
+    # https://python.langchain.com/docs/how_to/structured_output/
     # Filter the metadata list to include only the hacks with IDs in candidates_ids
     selected_hacks = [m for m in metadata if m['id'] in candidates_ids]
     hack_descriptions = ""
@@ -96,7 +125,30 @@ def generate_superhack(metadata, candidates_ids):
         hack_descriptions += hack_str
     json_result = check_feasibility(hack_descriptions)
     print(json_result)
-    return json_result
+
+    analysis: str = json_result["analysis"]
+    superhack_feasible: bool = json_result["superhack_feasible"]
+    combined_strategies: List[str] = json_result["combined_strategies"]
+    explanation: str = json_result["explanation"]
+    if superhack_feasible and len(combined_strategies) >= 2 :
+        selected_hacks = [m for m in metadata if m['id'] in combined_strategies]
+        hack_descriptions = ""
+        for hack in selected_hacks:
+            # Format each hack's information
+            hack_str = (
+                f"ID: {hack['id']}\n"
+                f"Title: {hack['title']}\n"
+                f"Resources Needed: {hack['resources_needed']}\n"
+                f"Expected Benefits: {hack['expected_benefits']}\n"
+                f"Steps to Implement: {hack['steps_summary']}\n"
+                "---\n"
+            )
+            hack_descriptions += hack_str
+
+        json_result = superhack_structure(hack_descriptions, explanation)
+        print(json_result)
+        return True, json_result
+    return False, None
 
 
 def pipeline1():
@@ -130,8 +182,8 @@ def pipeline1():
             for audience in audience_stages:
                 filter = {"$and": [{"Financial Goals": goal}, {"Audience and Life Stage": audience}]}
                 filters.append(filter)
-
-        assert(len(filter) == 20)
+                
+        assert(len(filters) == 20)
         return filters
     
     def fetch_hack_groups(filters: List[Dict]) -> Dict[str, Dict]:
@@ -146,12 +198,30 @@ def pipeline1():
             hack_groups[group_key] = hacks
         return hack_groups
 
+    def save_item_to_pickle(item, filename):
+        """Saves objects to a pickle file."""
+        with open(filename, "wb") as f:
+            pickle.dump(item, f)
+            # print(f"Hack groups saved to {filename}")
+
+    def get_hack_groups():
+        hack_groups = None
+        if os.path.exists(HACK_GROUPS):
+            with open(HACK_GROUPS, "rb") as f:
+                print("Loading hack groups from pickle file...") # Indicate loading
+                hack_groups = pickle.load(f)
+        if hack_groups is None:
+            hack_groups = fetch_hack_groups(generate_filters())
+            save_item_to_pickle(hack_groups, HACK_GROUPS)
+        return hack_groups
+
     def select_high_similarity_hacks_from_cluster(cluster_of_hacks:list, similarity_threshold=0.5) -> List[List[str]]:
         """
-        cluster_of_hacks: list [..., { 'id': ids[i], 'metadata': metadata[i], 'vectors': vectors}, ...]
+        cluster_of_hacks: list [..., { 'id': ids[i], 'metadata': metadata[i], 'vector': vector}, ...]
         """
-        embeddings = np.array([hack['vectors'] for hack in cluster_of_hacks])  # Extract embeddings.  Make sure your vectors are numpy arrays
+        embeddings = np.array([hack['vector'] for hack in cluster_of_hacks])
 
+        print("Original shape of embeddings:", embeddings.shape)
         similarity_matrix = cosine_similarity(embeddings)
 
         all_groups = []
@@ -178,9 +248,9 @@ def pipeline1():
 
         return all_groups
     
-    hack_groups = fetch_hack_groups(generate_filters())
+    hack_groups = get_hack_groups()
     hack_group_clusters = {}
-    checked_groups = set()
+    checked_groups = []
     
     for group_key, group_data in hack_groups.items():
         vectors, ids, metadata = prepare_data_for_clustering(group_data)
@@ -191,7 +261,7 @@ def pipeline1():
             hacks_in_label = clustered_data[0][label]
             groups_for_superhacks = select_high_similarity_hacks_from_cluster(hacks_in_label)
             for t in groups_for_superhacks:
-                checked_groups.add(t)
+                checked_groups.append(t)
                 generate_superhack(metadata, t)
 
 def determine_best_clustering_and_hyperparameters():

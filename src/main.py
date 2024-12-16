@@ -7,5 +7,8 @@
 #     response = model.chat_with_history(user_input)
 
 import superhacks.generate_superhacks as sh
+import utils.vector_store_management as vsm
+sh.pipeline1()
 
-sh.determine_best_clustering_and_hyperparameters()
+# vs_m = vsm.VS_Manager()
+# print(vs_m.get_by_ids(['5859', '5601', '5736', '5755']))
