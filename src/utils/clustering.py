@@ -7,8 +7,8 @@ from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_samples, silhouette_score
 from kneed import KneeLocator #For elbow method
 
-LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),'log')
-# LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),'log')
+LOG_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'data','log')
+
 
 def save_plot(fig, filename):
     """Saves a Matplotlib figure to the log directory."""
