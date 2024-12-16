@@ -236,8 +236,8 @@ def tune_dbscan_hyperparameters(data, eps_range, min_samples_range, pca_componen
     return best_eps, best_min_samples, best_labels
 
 def perform_best_clustering(data, process_name):
-    dbscan_labels = perform_dbscan(data, 0.7, 6, pca_components=434, process_name='exec_best_cluster', log_dir=LOG_DIR)
-    
+    dbscan_labels = perform_dbscan(data, 0.7, 6, pca_components=min(data.shape[0], data.shape[1]), process_name='exec_best_cluster', log_dir=LOG_DIR)
+    return dbscan_labels
 # #Generate some sample 2D data (replace with your actual data)
 # np.random.seed(0)
 # data = np.random.rand(100, 2) * 10  #100 samples, 2 features
