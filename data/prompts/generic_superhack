@@ -1,6 +1,6 @@
 This is a list of financial strategies, each with a unique ID and a brief description:
 
-{{group_of_hacks}}
+{group_of_hacks}
 
 ---------------------------------------
 
@@ -13,9 +13,9 @@ Your task is to evaluate the feasibility of their combination into a SuperHack. 
 Determine whether some or all of the given strategies can be combined to form a 'SuperHack' that is more valuable and effective than using them individually. If so, choose the subset that yields the greatest synergy and avoids conflicts.
 
 You must output a single JSON object with the following fields:
-{
+{{
     "analysis": A descriptive analysis (string) explaining whether a SuperHack is feasible, identifying points of conflict or synergy, and reasoning behind the chosen combination.
     "superhack_feasible": A boolean (true or false) indicating if a SuperHack can be formed.
     "combined_strategies": A list of the IDs of the strategies you recommend combining. If no combination is possible, return an empty list.
     "explanation": A step-by-step explanation (string) of how to integrate the selected strategies into a cohesive SuperHack, detailing the order of operations, how resources flow between steps, and what actions to take to achieve multiplicative benefits.
-}
+}}
