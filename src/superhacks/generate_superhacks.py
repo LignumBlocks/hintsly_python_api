@@ -82,12 +82,13 @@ def check_feasibility(hack_descriptions: str):
     while retries < 3:
         try:
             result = model.run(prompt, system_prompt)
-            # cleaned_string = result.replace("```json\n", "").replace("```","")
-            cleaned_string = result.strip()
+            cleaned_string = result.replace("```json\n", "").replace("```","")
+            cleaned_string = cleaned_string.strip()
             json_result =  json.loads(cleaned_string)
             return json_result
         except (Exception) as e:  #Catch more general exceptions
             print(f"Error during LLM call or JSON parsing (attempt {retries+1}/{3}): {e}")
+            print(cleaned_string)
             retries += 1
 
 def superhack_structure(hack_descriptions: str, superhack_analysis: str):
@@ -98,12 +99,13 @@ def superhack_structure(hack_descriptions: str, superhack_analysis: str):
     while retries < 3:
         try:
             result = model.run(prompt)
-            # cleaned_string = result.replace("```json\n", "").replace("```","")
-            cleaned_string = result.strip()
+            cleaned_string = result.replace("```json\n", "").replace("```","")
+            cleaned_string = cleaned_string.strip()
             json_result =  json.loads(cleaned_string)
             return json_result
         except (Exception) as e:  #Catch more general exceptions
             print(f"Error during LLM call or JSON parsing (attempt {retries+1}/{3}): {e}")
+            print(cleaned_string)
             retries += 1
 
 def generate_superhack(metadata, candidates_ids):
@@ -124,7 +126,7 @@ def generate_superhack(metadata, candidates_ids):
         )
         hack_descriptions += hack_str
     json_result = check_feasibility(hack_descriptions)
-    print(json_result)
+    # print(json_result)
 
     analysis: str = json_result["analysis"]
     superhack_feasible: bool = json_result["superhack_feasible"]
@@ -146,7 +148,7 @@ def generate_superhack(metadata, candidates_ids):
             hack_descriptions += hack_str
 
         json_result = superhack_structure(hack_descriptions, explanation)
-        print(json_result)
+        # print(json_result)
         return True, json_result
     return False, None
 
@@ -262,7 +264,7 @@ def pipeline1():
             groups_for_superhacks = select_high_similarity_hacks_from_cluster(hacks_in_label)
             for t in groups_for_superhacks:
                 checked_groups.append(t)
-                generate_superhack(metadata, t)
+                is_superhack, super_hack_fields = generate_superhack(metadata, t)
 
 def determine_best_clustering_and_hyperparameters():
     vs_manager = vsm.VS_Manager()
