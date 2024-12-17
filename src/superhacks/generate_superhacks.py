@@ -21,6 +21,8 @@ PROMPTS_TEMPLATES = {
     'SUPERHACK_STRUCTURE':os.path.join(PROMPT_DIR, "superhack_fields"),
 }
 HACK_GROUPS = os.path.join(BASE_DIR, 'data', 'files', "hack_groups.bin")
+SUPERHACKS_REPORTS = os.path.join(BASE_DIR, 'data', 'files', 'superhacks')
+checked_groups_json = os.path.join(BASE_DIR, 'data', 'files', 'checked_groups.json')
 
 def prepare_data_for_clustering(data_from_pinecone: Dict[str, Dict[str, dict|list]]) -> Tuple[np.ndarray, list, list]:
     """
@@ -108,10 +110,39 @@ def superhack_structure(hack_descriptions: str, superhack_analysis: str):
             print(cleaned_string)
             retries += 1
 
+def generate_markdown(superhack_info, selected_hacks):
+    """Generates the markdown content from superhack data."""
+    markdown = f"# Title: {superhack_info['title']}\n\n"
+    markdown = f"## Description\n{superhack_info['description']}\n\n"
+    markdown = f"## Implementation Steps\n{superhack_info['implementation_steps']}\n\n"
+    markdown = f"## Expected Results\n{superhack_info['expected_results']}\n\n"
+    markdown = f"## Risks and Mitigation\n{superhack_info['risks_and_mitigation']}\n\n"
+    markdown += "## Hacks Included:\n\n"
+    for hack in selected_hacks: 
+        markdown += f"### {hack['title']}\n\n"
+        for key, value in hack.items():
+            markdown += f"- **{key.replace('_', ' ').title()}:** {value}\n"
+        markdown += "\n"
+    return markdown
+
 def generate_superhack(metadata, candidates_ids):
+    """Filter the metadata list to include only the hacks with IDs in candidates_ids
+
+    Args:
+        metadata: A list of dictionaries, each representing a hack.
+        candidates_ids: A list of IDs of hacks to consider for the superhack.
+    
+    Returns:
+        A tuple containing:
+            - A boolean indicating whether a feasible superhack was found.
+            - A dictionary containing the superhack information (or None if not feasible).
+    """
     # https://python.langchain.com/docs/how_to/structured_output/
-    # Filter the metadata list to include only the hacks with IDs in candidates_ids
     selected_hacks = [m for m in metadata if m['id'] in candidates_ids]
+    if not selected_hacks:
+        print(f"Warning: No hacks found for IDs: {candidates_ids}")
+        return False, None
+
     hack_descriptions = ""
     for hack in selected_hacks:
         # Format each hack's information
@@ -127,6 +158,9 @@ def generate_superhack(metadata, candidates_ids):
         hack_descriptions += hack_str
     json_result = check_feasibility(hack_descriptions)
     # print(json_result)
+    if not json_result:  #check_feasibility could return None on failure
+        print("check_feasibility failed to return data. Skipping this combination.")
+        return False, None
 
     analysis: str = json_result["analysis"]
     superhack_feasible: bool = json_result["superhack_feasible"]
@@ -149,9 +183,31 @@ def generate_superhack(metadata, candidates_ids):
 
         json_result = superhack_structure(hack_descriptions, explanation)
         # print(json_result)
-        return True, json_result
+        if not json_result:  #superhack_structure could return None on failure
+            print("superhack_structure failed to return data. Skipping this combination.")
+            return False, None
+        title: str = json_result["title"]
+        description: str = json_result["description"]
+        implementation_steps: str = json_result["implementation_steps"]
+        expected_results: str = json_result["expected_results"]
+        risks_and_mitigation: str = json_result["risks_and_mitigation"]
+        superhack_info = { "title": title, "description": description, "implementation_steps": implementation_steps,  
+                          "expected_results": expected_results, "risks_and_mitigation": risks_and_mitigation, 
+                          "combined_strategies": combined_strategies }
+        
+        markdown_content = generate_markdown(superhack_info, selected_hacks)
+        filename = os.path.join(SUPERHACKS_REPORTS, f"superhack_{len(os.listdir(SUPERHACKS_REPORTS))+1}.md")
+        with open(filename, "w") as f:
+            f.write(markdown_content)
+        print(f"Superhack report saved to: {filename}")
+        return True, superhack_info
     return False, None
 
+def classify_superhack(superhack_info: dict):
+    return superhack_info
+
+def save_superhack(superhack_info: dict):
+    return
 
 def pipeline1():
     """
@@ -227,7 +283,7 @@ def pipeline1():
         similarity_matrix = cosine_similarity(embeddings)
 
         all_groups = []
-        all_group_ids = set() # Keep track of unique group combinations.
+        # all_group_ids = set() # Keep track of unique group combinations.
 
         for i, hack in enumerate(cluster_of_hacks):
             # select only the hacks with a high similarity to the current i hack
@@ -242,17 +298,17 @@ def pipeline1():
                 group_indices = random.sample(range(num_similar), group_size)
                 group_ids = [hack_id] + [similar_hacks[j] for j in group_indices]
 
-                group_ids_tuple = tuple(sorted(group_ids)) #Make hashable for set membership check.
-
-                if group_ids_tuple not in all_group_ids:
-                    all_groups.append(group_ids)
-                    all_group_ids.add(group_ids_tuple)
+                group_ids = sorted(group_ids)
+                all_groups.append(group_ids)
 
         return all_groups
     
     hack_groups = get_hack_groups()
     hack_group_clusters = {}
     checked_groups = []
+    if os.path.exists(checked_groups_json):
+        with open(checked_groups_json, 'r') as f:
+            checked_groups = json.load(f)
     
     for group_key, group_data in hack_groups.items():
         vectors, ids, metadata = prepare_data_for_clustering(group_data)
@@ -262,9 +318,17 @@ def pipeline1():
         for label in clustered_data[0]:
             hacks_in_label = clustered_data[0][label]
             groups_for_superhacks = select_high_similarity_hacks_from_cluster(hacks_in_label)
-            for t in groups_for_superhacks:
-                checked_groups.append(t)
-                is_superhack, super_hack_fields = generate_superhack(metadata, t)
+            for group in groups_for_superhacks:
+                if group in checked_groups: continue
+                # If not, add it to checked_groups
+                checked_groups.append(group)
+
+                is_superhack, super_hack_fields = generate_superhack(metadata, group)
+                if is_superhack:
+                    super_hack_fields = classify_superhack(super_hack_fields)
+                    save_superhack(super_hack_fields)
+    with open(checked_groups_json, 'w') as f:
+        json.dump(checked_groups, f, indent=4)
 
 def determine_best_clustering_and_hyperparameters():
     vs_manager = vsm.VS_Manager()

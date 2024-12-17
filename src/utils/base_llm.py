@@ -30,7 +30,7 @@ class Base_LLM:
 
     def run(self, user_input, system_prompt=''):
         prompt = ChatPromptTemplate.from_messages([SystemMessage(content=system_prompt), HumanMessage(content=user_input)])
-        print(prompt)
+        # print(prompt)
         response = self.llm.invoke(prompt.messages)
         return response.content
 
