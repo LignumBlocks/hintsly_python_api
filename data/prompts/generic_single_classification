@@ -1,0 +1,18 @@
+Bellow you will be provided with a financial SuperHack. According to the following '{class_name}' categories evaluate it taking into account: "{classification_description}".
+
+## {class_name} categories:
+{explained_categories}
+
+## Financial SuperHack:
+---
+{superhack_description}
+---
+
+Choose the more accurate category for the provided information.
+Provide your response only as a JSON object, in the following format:
+```json
+{{
+    "category": "<category with the same name as it was listed>",
+    "explanation": "<A short explanation regarding the classification>",
+}}
+```

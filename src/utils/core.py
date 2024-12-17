@@ -102,3 +102,24 @@ HACKS_CLASSIFICATIONS_CATEGORIES = {
     "Financial Goals": { "categories": ['Debt Reduction', 'Wealth Building', 'Income Generation', 'Expense Management', 'Other Financial Goals' ], "exclude": "Other Financial Goals" },
     "Knowledge Level Required": { "categories": ['Beginner', 'Intermediate', 'Advanced', 'Unknown Literacy Level'], "exclude": "Unknown Literacy Level" }
 }
+
+FULL_SUPERHACKS_CLASSIFICATIONS_DICT = {
+    "Target User Profile": {
+        "description": "User's experience level and risk tolerance to implement the SuperHack",
+        "categories": [
+            {"name": 'Beginners', "description": 'Focus on simple, low-risk combinations that are easy to understand and implement.'},
+            {"name": 'Advanced Users', "description": 'Introduce higher complexity and greater returns for users comfortable with more risk.'}
+        ],
+        "type": 'single_cat'
+    },
+    "Goals": {
+        "description": "Financial objectives that the SuperHacks aims to achieve.",
+        "categories": [
+            {"name": 'Savings Optimization', "description": 'Hacks focused on maximizing savings through effective budgeting and smart spending.'},
+            {"name": 'Debt Reduction', "description": 'Hacks aimed at minimizing or eliminating debt through strategic financial planning.'},
+            {"name": 'Investment Growth', "description": 'Hacks designed to enhance investment returns and grow wealth over time.'},
+            {"name": 'Expense Management', "description": 'Hacks that help control or reduce expenses to improve overall financial health.'}
+        ],
+        "type": 'multi_cat'
+    }
+}

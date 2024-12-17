@@ -1,0 +1,35 @@
+Bellow you will be provided with a financial SuperHack. According to the following '{class_name}' categories evaluate it taking into account: "{classification_description}".
+
+## {class_name} categories:
+{explained_categories}
+
+## Financial SuperHack:
+---
+{superhack_description}
+---
+
+State the applicable tags to the provided information. If there is more than one category fitting then return them all. Provide your response only as a JSON object, in the following format:
+
+Example for more than one tag:
+```json
+[
+  {{
+    "category": "<category with the same name as it was listed>",
+    "explanation": "<A short explanation regarding the classification>"
+  }},
+  {{
+    "category": "<category with the same name as it was listed>",
+    "explanation": "<A short explanation regarding the classification>"
+  }},
+  // ...
+]
+```
+Example for one tag:
+```json
+[
+  {{
+    "category": "<category with the same name as it was listed>",
+    "explanation": "<A short explanation regarding the classification>"
+  }}
+]
+```

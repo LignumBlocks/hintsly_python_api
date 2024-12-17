@@ -19,6 +19,8 @@ PROMPTS_TEMPLATES = {
     'CHECK_FEASIBILITY':os.path.join(PROMPT_DIR, "generic_superhack"),
     'CHECK_FEASIBILITY_SYSTEM':os.path.join(PROMPT_DIR, "generic_superhack_system"),
     'SUPERHACK_STRUCTURE':os.path.join(PROMPT_DIR, "superhack_fields"),
+    'GENERIC_SINGLE_CLASSIFICATION':os.path.join(PROMPT_DIR, "generic_single_classification"),
+    'GENERIC_MULTI_CLASSIFICATION':os.path.join(PROMPT_DIR, "generic_multi_classification"),
 }
 HACK_GROUPS = os.path.join(BASE_DIR, 'data', 'files', "hack_groups.bin")
 SUPERHACKS_REPORTS = os.path.join(BASE_DIR, 'data', 'files', 'superhacks')
@@ -113,10 +115,10 @@ def superhack_structure(hack_descriptions: str, superhack_analysis: str):
 def generate_markdown(superhack_info, selected_hacks):
     """Generates the markdown content from superhack data."""
     markdown = f"# Title: {superhack_info['title']}\n\n"
-    markdown = f"## Description\n{superhack_info['description']}\n\n"
-    markdown = f"## Implementation Steps\n{superhack_info['implementation_steps']}\n\n"
-    markdown = f"## Expected Results\n{superhack_info['expected_results']}\n\n"
-    markdown = f"## Risks and Mitigation\n{superhack_info['risks_and_mitigation']}\n\n"
+    markdown += f"## Description\n{superhack_info['description']}\n\n"
+    markdown += f"## Implementation Steps\n{superhack_info['implementation_steps']}\n\n"
+    markdown += f"## Expected Results\n{superhack_info['expected_results']}\n\n"
+    markdown += f"## Risks and Mitigation\n{superhack_info['risks_and_mitigation']}\n\n"
     markdown += "## Hacks Included:\n\n"
     for hack in selected_hacks: 
         markdown += f"### {hack['title']}\n\n"
@@ -194,16 +196,47 @@ def generate_superhack(metadata, candidates_ids):
         superhack_info = { "title": title, "description": description, "implementation_steps": implementation_steps,  
                           "expected_results": expected_results, "risks_and_mitigation": risks_and_mitigation, 
                           "combined_strategies": combined_strategies }
-        
-        markdown_content = generate_markdown(superhack_info, selected_hacks)
-        filename = os.path.join(SUPERHACKS_REPORTS, f"superhack_{len(os.listdir(SUPERHACKS_REPORTS))+1}.md")
-        with open(filename, "w") as f:
-            f.write(markdown_content)
-        print(f"Superhack report saved to: {filename}")
         return True, superhack_info
     return False, None
 
-def classify_superhack(superhack_info: dict):
+def classify_superhack(superhack_info: dict, metadata:List[dict]):
+    """
+    superhack_info = { "title": title, "description": description, "implementation_steps": implementation_steps,  
+                    "expected_results": expected_results, "risks_and_mitigation": risks_and_mitigation, 
+                    "combined_strategies": combined_strategies }
+    """    
+    selected_hacks = [m for m in metadata if m['id'] in superhack_info['combined_strategies']]
+    superhack = f"Title: {superhack_info['title']}\n\nDescription\n{superhack_info['description']}\n\n"
+    superhack += f"Steps to Implement\n{superhack_info['implementation_steps']}\n\nExpected Results\n{superhack_info['expected_results']}\n\n"
+    class_and_cat = core.FULL_SUPERHACKS_CLASSIFICATIONS_DICT
+    for class_name, class_data in class_and_cat.items():
+        explained_categories = ""
+        for cat in class_data['categories']:
+            explained_categories += f"- {cat['name']}: {cat['description']}\n"
+        prompt_key = PROMPTS_TEMPLATES['GENERIC_SINGLE_CLASSIFICATION'] if class_data['type'] == 'single_cat' else PROMPTS_TEMPLATES['GENERIC_MULTI_CLASSIFICATION']
+        prompt_template = base_llm.load_prompt(prompt_key)    
+        prompt = prompt_template.format(superhack_description=superhack, class_name=class_name, 
+                                        classification_description=class_data['description'],
+                                        explained_categories=explained_categories)
+        model = base_llm.Base_LLM()
+        retries = 0
+        while retries < 3:
+            try:
+                result = model.run(prompt)
+                cleaned_string = result.replace("```json\n", "").replace("```","")
+                cleaned_string = cleaned_string.strip()
+                json_result = json.loads(cleaned_string)
+            except (Exception) as e:  #Catch more general exceptions
+                print(f"Error during LLM call or JSON parsing (attempt {retries+1}/{3}): {e}")
+                print(cleaned_string)
+                retries += 1
+        superhack_info[class_name] = [json_result] if class_data['type'] == 'single_cat' else json_result
+
+    markdown_content = generate_markdown(superhack_info, selected_hacks)
+    filename = os.path.join(SUPERHACKS_REPORTS, f"superhack_{len(os.listdir(SUPERHACKS_REPORTS))+1}.md")
+    with open(filename, "w") as f:
+        f.write(markdown_content)
+    print(f"Superhack report saved to: {filename}")
     return superhack_info
 
 def save_superhack(superhack_info: dict):
