@@ -10,6 +10,7 @@ import utils.clustering as clustering
 import utils.vector_store_management as vsm
 import utils.core as core
 import utils.base_llm as base_llm
+import utils.handle_hintsly_api as api
 
 SUPERHACK_DIR = os.path.dirname(os.path.abspath(__file__))
 SRC_DIR = os.path.dirname(SUPERHACK_DIR)               
@@ -24,6 +25,7 @@ PROMPTS_TEMPLATES = {
 }
 HACK_GROUPS = os.path.join(BASE_DIR, 'data', 'files', "hack_groups.bin")
 SUPERHACKS_REPORTS = os.path.join(BASE_DIR, 'data', 'files', 'superhacks')
+SUPERHACKS_OBJ_REPORTS = os.path.join(BASE_DIR, 'data', 'files', 'superhacks_obj')
 checked_groups_json = os.path.join(BASE_DIR, 'data', 'files', 'checked_groups.json')
 
 def prepare_data_for_clustering(data_from_pinecone: Dict[str, Dict[str, dict|list]]) -> Tuple[np.ndarray, list, list]:
@@ -112,20 +114,20 @@ def superhack_structure(hack_descriptions: str, superhack_analysis: str):
             print(cleaned_string)
             retries += 1
 
-def generate_markdown(superhack_info, selected_hacks):
-    """Generates the markdown content from superhack data."""
-    markdown = f"# Title: {superhack_info['title']}\n\n"
-    markdown += f"## Description\n{superhack_info['description']}\n\n"
-    markdown += f"## Implementation Steps\n{superhack_info['implementation_steps']}\n\n"
-    markdown += f"## Expected Results\n{superhack_info['expected_results']}\n\n"
-    markdown += f"## Risks and Mitigation\n{superhack_info['risks_and_mitigation']}\n\n"
-    markdown += "## Hacks Included:\n\n"
-    for hack in selected_hacks: 
-        markdown += f"### {hack['title']}\n\n"
-        for key, value in hack.items():
-            markdown += f"- **{key.replace('_', ' ').title()}:** {value}\n"
-        markdown += "\n"
-    return markdown
+# def generate_markdown(superhack_info, selected_hacks):
+#     """Generates the markdown content from superhack data."""
+#     markdown = f"# Title: {superhack_info['title']}\n\n"
+#     markdown += f"## Description\n{superhack_info['description']}\n\n"
+#     markdown += f"## Implementation Steps\n{superhack_info['implementation_steps']}\n\n"
+#     markdown += f"## Expected Results\n{superhack_info['expected_results']}\n\n"
+#     markdown += f"## Risks and Mitigation\n{superhack_info['risks_and_mitigation']}\n\n"
+#     markdown += "## Hacks Included:\n\n"
+#     for hack in selected_hacks: 
+#         markdown += f"### {hack['title']}\n\n"
+#         for key, value in hack.items():
+#             markdown += f"- **{key.replace('_', ' ').title()}:** {value}\n"
+#         markdown += "\n"
+#     return markdown
 
 def generate_superhack(metadata, candidates_ids):
     """Filter the metadata list to include only the hacks with IDs in candidates_ids
@@ -199,13 +201,12 @@ def generate_superhack(metadata, candidates_ids):
         return True, superhack_info
     return False, None
 
-def classify_superhack(superhack_info: dict, metadata:List[dict]):
+def classify_superhack(superhack_info: dict):
     """
     superhack_info = { "title": title, "description": description, "implementation_steps": implementation_steps,  
                     "expected_results": expected_results, "risks_and_mitigation": risks_and_mitigation, 
                     "combined_strategies": combined_strategies }
     """    
-    selected_hacks = [m for m in metadata if m['id'] in superhack_info['combined_strategies']]
     superhack = f"Title: {superhack_info['title']}\n\nDescription\n{superhack_info['description']}\n\n"
     superhack += f"Steps to Implement\n{superhack_info['implementation_steps']}\n\nExpected Results\n{superhack_info['expected_results']}\n\n"
     class_and_cat = core.FULL_SUPERHACKS_CLASSIFICATIONS_DICT
@@ -222,25 +223,75 @@ def classify_superhack(superhack_info: dict, metadata:List[dict]):
         retries = 0
         while retries < 3:
             try:
-                result = model.run(prompt)
+                result = model.run(prompt, "You are a financial strategy combination expert.")
                 cleaned_string = result.replace("```json\n", "").replace("```","")
                 cleaned_string = cleaned_string.strip()
                 json_result = json.loads(cleaned_string)
             except (Exception) as e:  #Catch more general exceptions
                 print(f"Error during LLM call or JSON parsing (attempt {retries+1}/{3}): {e}")
                 print(cleaned_string)
-                retries += 1
-        superhack_info[class_name] = [json_result] if class_data['type'] == 'single_cat' else json_result
+            retries += 1
+        
+        if class_data['type'] == 'single_cat':
+            print(json_result)
+            cat_name = json_result["category"]
+            cat_id = core.SUPERHACKS_CATEGORIES_IDS.get(cat_name, None)
+            if cat_id:
+                if not superhack_info.get("category_ids", None):
+                    superhack_info["category_ids"] = [cat_id]
+                else:
+                    if not cat_id in superhack_info["category_ids"]:
+                        superhack_info["category_ids"].append(cat_id)
+        else:
+            print(json_result)
+            for cat in json_result:
+                cat_name = cat["category"]
+                cat_id = core.SUPERHACKS_CATEGORIES_IDS.get(cat_name, None)
+                if cat_id:
+                    if not superhack_info.get("category_ids", None):
+                        superhack_info["category_ids"] = [cat_id]
+                    else:
+                        if not cat_id in superhack_info["category_ids"]:
+                            superhack_info["category_ids"].append(cat_id)
+        print(superhack_info['category_ids'])
+        # superhack_info[class_name] = [json_result] if class_data['type'] == 'single_cat' else json_result
 
-    markdown_content = generate_markdown(superhack_info, selected_hacks)
-    filename = os.path.join(SUPERHACKS_REPORTS, f"superhack_{len(os.listdir(SUPERHACKS_REPORTS))+1}.md")
-    with open(filename, "w") as f:
-        f.write(markdown_content)
-    print(f"Superhack report saved to: {filename}")
     return superhack_info
 
 def save_superhack(superhack_info: dict):
-    return
+    """
+    superhack_info = { "title": title, "description": description, "implementation_steps": implementation_steps,  
+                    "expected_results": expected_results, "risks_and_mitigation": risks_and_mitigation, 
+                    "combined_strategies": combined_strategies, "category_ids": category_ids }
+    """    
+    data = {
+        "title": superhack_info['title'],
+        "description": superhack_info['description'],
+        "implementation_steps": superhack_info['implementation_steps'],
+        "expected_results": superhack_info['expected_results'],
+        "risks_and_mitigation": superhack_info['risks_and_mitigation'],
+        "hack_ids": [ int(id) for id in superhack_info["combined_strategies"]],
+        "category_ids": superhack_info['category_ids']
+    }
+    print(f"Create SuperHack in database: {data}")
+    api.create_superhack(data)
+
+# def save_superhack(superhack_info: dict, metadata:List[dict]):
+#     selected_hacks = [m for m in metadata if m['id'] in superhack_info['combined_strategies']]
+#    
+#     markdown_content = generate_markdown(superhack_info, selected_hacks)
+#     filename = os.path.join(SUPERHACKS_REPORTS, f"superhack_{len(os.listdir(SUPERHACKS_REPORTS))+1}.md")
+#     with open(filename, "w") as f:
+#         f.write(markdown_content)
+#     print(f"Superhack report saved to: {filename}")
+#     filename2 = os.path.join(SUPERHACKS_OBJ_REPORTS, f"superhack_{len(os.listdir(SUPERHACKS_OBJ_REPORTS))+1}.bin")
+#     save_item_to_pickle(superhack_info, filename2)
+
+def save_item_to_pickle(item, filename):
+    """Saves objects to a pickle file."""
+    with open(filename, "wb") as f:
+        pickle.dump(item, f)
+        # print(f"Hack groups saved to {filename}")
 
 def pipeline1():
     """
@@ -338,10 +389,15 @@ def pipeline1():
     
     hack_groups = get_hack_groups()
     hack_group_clusters = {}
-    checked_groups = []
+    checked_groups = { "sh_comb": [], "failed_comb": [] }
     if os.path.exists(checked_groups_json):
         with open(checked_groups_json, 'r') as f:
             checked_groups = json.load(f)
+    else:
+        print("Requesting combined hacks from db:")
+        data = api.get_combined_hacks()
+        print(data)
+        checked_groups = data['data']
     
     for group_key, group_data in hack_groups.items():
         vectors, ids, metadata = prepare_data_for_clustering(group_data)
@@ -352,14 +408,34 @@ def pipeline1():
             hacks_in_label = clustered_data[0][label]
             groups_for_superhacks = select_high_similarity_hacks_from_cluster(hacks_in_label)
             for group in groups_for_superhacks:
-                if group in checked_groups: continue
-                # If not, add it to checked_groups
-                checked_groups.append(group)
+                if group in checked_groups["sh_comb"]: 
+                    print(f"Group {group} already checked and used in a SuperHack. Skipping")
+                    continue
+                elif group in checked_groups["failed_comb"]:
+                    print(f"Group {group} already checked and failed. Skipping")
+                    continue
 
+                print(f"generate_superhack for group {group}")
                 is_superhack, super_hack_fields = generate_superhack(metadata, group)
+                used_hacks = sorted(super_hack_fields['combined_strategies'])
+                
                 if is_superhack:
                     super_hack_fields = classify_superhack(super_hack_fields)
                     save_superhack(super_hack_fields)
+                
+                key = "sh_comb" if is_superhack else "failed_comb"
+                if group == used_hacks:
+                    checked_groups[key].append(group)
+                else:
+                    if used_hacks not in checked_groups:
+                        checked_groups[key].append(used_hacks)
+                    checked_groups["failed_comb"].append(group)
+                
+                with open(checked_groups_json, 'w') as f:
+                    json.dump(checked_groups, f, indent=4)
+                api.save_combined_hacks({ "data": checked_groups  })
+            print("SuperHacks for the first cluster of the first group ready")
+            return
     with open(checked_groups_json, 'w') as f:
         json.dump(checked_groups, f, indent=4)
 
