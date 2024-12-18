@@ -10,17 +10,100 @@ BASE_URL = "https://clawed-frog.hintsly-dashboard-2.c66.me/api/v1"
 # Endpoint paths
 CUSTOM_HACKS_ENDPOINT = "/custom-hacks"
 MARK_SENT_ENDPOINT = "/hacks-sent-to-python"
+SYNCHRONIZE_HACKS = "/hacks/synchronize"
+SHOW_HACKS = "/hacks"
+GET_SUPERHACKS_CATEGORIES_ENDPOINT = "/superhacks/categories"
+CREATE_SUPERHACKS_ENDPOINT = "/superhacks/create"
+HACKS_FOR_SUPERHACKS_ENDPOINT = "/superhacks/combined-hacks"
+SAVE_HACKS_COMB_ENDPOINT = "/superhacks/save-combined-hacks"
 # Headers
 HEADERS = {
     "Content-Type": "application/json",
-    # "Authorization": f"Bearer {os.getenv('HINTSLY_API_AUTH_TOKEN')}",
     "x-api-key": "mykey"
 }
 # Pagination settings
 PER_PAGE = 10
 # ====================================================
 
-def fetch_all_hacks(per_page: int = PER_PAGE) -> List[Dict]:
+def get_superhack_categories():
+    url = f"{BASE_URL}{GET_SUPERHACKS_CATEGORIES_ENDPOINT}"
+    response = requests.get(url, headers=HEADERS)
+    response.raise_for_status()
+    return response.json()
+
+def create_superhack(data):
+    """
+    body = {
+        "title": "sh",
+        "description": "qrfqwrfqwfr",
+        "implementation_steps": "qfqwefqwef",
+        "expected_results": "qwefqwfqwef",
+        "risks_and_mitigation": "fwqefqwef",
+        "hack_ids": [
+            5,
+            6
+        ],
+        "category_ids": [
+            40,
+            41
+        ]
+    }
+    """
+    url = f"{BASE_URL}{CREATE_SUPERHACKS_ENDPOINT}"
+    response = requests.post(url, headers=HEADERS, json=data)
+    response.raise_for_status()
+    return response.json()
+
+def get_combined_hacks():
+    url = f"{BASE_URL}{HACKS_FOR_SUPERHACKS_ENDPOINT}"
+    response = requests.get(url, headers=HEADERS)
+    response.raise_for_status()
+    return response.json()
+
+def save_combined_hacks(data):
+    """
+    body =  {
+                "data": {"mr": "kjwefiwwefwefwefwefe"}
+            }
+    """
+    url = f"{BASE_URL}{SAVE_HACKS_COMB_ENDPOINT}"
+    response = requests.post(url, headers=HEADERS, json=data)
+    response.raise_for_status()
+    return response.json()
+
+def synchronize_hacks():
+    url = f"{BASE_URL}{SYNCHRONIZE_HACKS}"
+    response = requests.post(url, headers=HEADERS)
+    response.raise_for_status()
+    return response.json()
+
+def get_hack_by_id(hack_id):
+    url = f"{BASE_URL}{SHOW_HACKS}/{hack_id}"
+    response = requests.get(url)
+    response.raise_for_status()
+    return response.json()
+
+
+def get_custom_hacks(per_page=PER_PAGE, page=1):
+    url = f"{BASE_URL}{CUSTOM_HACKS_ENDPOINT}"
+    params = { "per_page": per_page, "page": page }
+    response = requests.get(url, headers=HEADERS, params=params)
+    response.raise_for_status()
+    return response.json()
+
+def mark_hacks_as_sent(hack_ids: List[int]):
+    """
+    body = {
+        "hack_ids": []
+    }
+    """
+    url = f"{BASE_URL}{MARK_SENT_ENDPOINT}"
+    payload = {"hack_ids": hack_ids}
+    response = requests.post(url, headers=HEADERS, json=payload)
+    response.raise_for_status()
+    return response.json()
+
+def fetch_all_hacks(per_page:int=PER_PAGE) -> List[Dict]:
     """
     Fetch all hacks from the custom-hacks endpoint, handling pagination.
 
@@ -31,17 +114,9 @@ def fetch_all_hacks(per_page: int = PER_PAGE) -> List[Dict]:
     page = 1
 
     while True:
-        params = {
-            "per_page": per_page,
-            "page": page
-        }
-        url = f"{BASE_URL}{CUSTOM_HACKS_ENDPOINT}"
-        print(f"Fetching page {page}...")
-
-        try:
-            response = requests.get(url, headers=HEADERS, params=params)
-            response.raise_for_status()  # Raise an error for bad status codes
-            data = response.json()
+        try:            
+            print(f"Fetching page {page}...")
+            data = get_custom_hacks(per_page=per_page, page=page)
             # data is a dictionary with the following structure:
             # data = {
             # 'pagination': {'page': 1, 'items': 10, 'count': 435, 'pages': 44, 'next': 2, 'prev': None},
@@ -88,27 +163,6 @@ def fetch_all_hacks(per_page: int = PER_PAGE) -> List[Dict]:
 
     return hacks
 
-def mark_hacks_as_sent(hack_ids: List[int]) -> bool:
-    """
-    Mark the given hacks as sent to Python by sending their IDs to the endpoint.
-
-    :param hack_ids: A list of hack IDs to mark as sent.
-    :return: True if marking was successful, False otherwise.
-    """
-    url = f"{BASE_URL}{MARK_SENT_ENDPOINT}"
-    payload = {
-        "hack_ids": hack_ids
-    }
-
-    try:
-        response = requests.post(url, headers=HEADERS, json=payload)
-        response.raise_for_status()
-        print(f"Successfully marked {len(hack_ids)} hacks as sent.")
-        return True
-    except requests.exceptions.RequestException as e:
-        print(f"An error occurred while marking hacks as sent: {e}")
-        return False
-
 def preprocess_hack_categories(current_page_hacks_cat, classifications_dict):
     """
     Preprocess hack categories to create a more polished version of the category information for each hack.
@@ -137,12 +191,13 @@ def preprocess_hack_categories(current_page_hacks_cat, classifications_dict):
     return preprocessed_hacks
 
 def main():
-    # Step 1: Fetch all hacks
-    hacks = fetch_all_hacks(3)
+    print(get_superhack_categories())
+    # # Step 1: Fetch all hacks
+    # hacks = fetch_all_hacks(3)
 
-    if not hacks:
-        print("No hacks to process.")
-        return
+    # if not hacks:
+    #     print("No hacks to process.")
+    #     return
     
     # # Step 2: Process the hacks
     # processed_ids = process_hacks(hacks)
