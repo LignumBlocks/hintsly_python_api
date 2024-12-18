@@ -29,9 +29,9 @@ class Base_LLM:
         self.llm = ChatGoogleGenerativeAI(model=self.model_name, temperature=self.temperature)
 
     def run(self, user_input, system_prompt=''):
-        prompt = ChatPromptTemplate.from_messages([SystemMessage(content=system_prompt), HumanMessage(content=user_input)])
+        prompt = [SystemMessage(content=system_prompt), HumanMessage(content=user_input)]
         # print(prompt)
-        response = self.llm.invoke(prompt.messages)
+        response = self.llm.invoke(prompt)
         return response.content
 
 
