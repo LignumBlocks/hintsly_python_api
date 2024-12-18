@@ -113,7 +113,7 @@ FULL_SUPERHACKS_CLASSIFICATIONS_DICT = {
         "type": 'single_cat'
     },
     "Goals": {
-        "description": "Financial objectives that the SuperHacks aims to achieve.",
+        "description": "Financial objectives that the SuperHacks aim to achieve.",
         "categories": [
             {"name": 'Savings Optimization', "description": 'Hacks focused on maximizing savings through effective budgeting and smart spending.'},
             {"name": 'Debt Reduction', "description": 'Hacks aimed at minimizing or eliminating debt through strategic financial planning.'},
@@ -122,4 +122,77 @@ FULL_SUPERHACKS_CLASSIFICATIONS_DICT = {
         ],
         "type": 'multi_cat'
     }
+}
+
+superhack_categories_ruby = {
+    'categories': [
+        {
+            'id': 101, 
+            'name': 'Beginners', 
+            'classification_id': 20, 
+            'description': 'Focus on simple, low-risk combinations that are easy to understand and implement.', 
+            'created_at': '2024-12-17T20:53:54.684Z', 
+            'updated_at': '2024-12-17T20:53:54.688Z', 
+            'for_super_hacks': True
+        }, 
+        {
+            'id': 102, 
+            'name': 'Advanced Users', 
+            'classification_id': 20, 
+            'description': 'Introduce higher complexity and greater returns for users comfortable with more risk.', 
+            'created_at': '2024-12-17T20:53:54.688Z', 
+            'updated_at': '2024-12-17T20:53:54.688Z', 
+            'for_super_hacks': True
+        },
+        {
+            'id': 103, 
+            'name': 'Savings Optimization', 
+            'classification_id': 21, 
+            'description': 'Hacks focused on maximizing savings through effective budgeting and smart spending.', 
+            'created_at': '2024-12-17T20:53:54.697Z', 
+            'updated_at': '2024-12-17T20:53:54.697Z', 
+            'for_super_hacks': True
+        }, 
+        {
+            'id': 104, 
+            'name': 'Debt Reduction', 
+            'classification_id': 21, 
+            'description': 'Hacks aimed at minimizing or eliminating debt through strategic financial planning.', 
+            'created_at': '2024-12-17T20:53:54.701Z', 
+            'updated_at': '2024-12-17T20:53:54.701Z', 
+            'for_super_hacks': True
+        }, 
+        {
+            'id': 105, 
+            'name': 'Investment Growth', 
+            'classification_id': 21, 
+            'description': 'Hacks designed to enhance investment returns and grow wealth over time.', 
+            'created_at': '2024-12-17T20:53:54.704Z', 
+            'updated_at': '2024-12-17T20:53:54.704Z', 
+            'for_super_hacks': True
+        },
+        {
+            'id': 106, 
+            'name': 'Expense Management', 
+            'classification_id': 21, 
+            'description': 'Hacks that help control or reduce expenses to improve overall financial health.', 
+            'created_at': '2024-12-17T20:53:54.707Z', 
+            'updated_at': '2024-12-17T20:53:54.707Z', 
+            'for_super_hacks': True
+        }
+    ], 
+    'classifications': [
+        {
+            'id': 20, 
+            'name': 'Target User Profile', 
+            'created_at': '2024-12-17T20:53:54.629Z', 
+            'updated_at': '2024-12-17T20:53:54.629Z'
+        }, 
+        {
+            'id': 21, 
+            'name': 'Goals', 
+            'created_at': '2024-12-17T20:53:54.694Z', 
+            'updated_at': '2024-12-17T20:53:54.694Z'
+        }
+    ]
 }
