@@ -124,6 +124,10 @@ FULL_SUPERHACKS_CLASSIFICATIONS_DICT = {
     }
 }
 
+SUPERHACKS_CATEGORIES_IDS = {
+    'Beginners':101, 'Advanced Users': 102,
+    'Savings Optimization': 103, 'Debt Reduction': 104, 'Investment Growth': 105, 'Expense Management': 106
+}
 superhack_categories_ruby = {
     'categories': [
         {

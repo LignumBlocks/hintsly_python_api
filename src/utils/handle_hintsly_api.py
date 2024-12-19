@@ -7,10 +7,12 @@ import utils.core as core
 # ================== Configuration ==================
 # Base URL of the API
 BASE_URL = "https://clawed-frog.hintsly-dashboard-2.c66.me/api/v1"
+# Cookie
+COOKIE = "_rails_ralix_tailwind_session=tkcF0EWxD4AAk2sXevvtEQZII0AM%2By9gRy9oJ1oHXUpwLtAoJ1V4RUB3gUWvtU0icBklehDqYDFDomxvvolBqiPLSVw%2FVnkwis0QJFP87anWPncbijKR2jP7zXhwVzUHeMrIFL%2FG%2BqYrk1tMepKxn%2BlrcPdwifazoAqVK2tZrqC7fV38fzHsZrbGt0N6MhLN5twzdkkqfWxbgudnaTXKuyxTMj1H5jUCVMBwZwODCjwSAtLSY8ASpzqmEE2MLXXI9%2FOpy0di8%2BSqOtOxEAj3cgavNDHK8k3Z5eTiVhUmcgo35a7hwUO5H%2FV3HvwKVxcH3Wqh%2BRpMNLhBe%2B78DHLa3MmndzA9k4W0Iw%2BYu3QgUEnpkUCBXw%3D%3D--jziZJAk2UPE5Sp3o--sDwlqPpW3PqqTfdKbNzt7Q%3D%3D"
 # Endpoint paths
 CUSTOM_HACKS_ENDPOINT = "/custom-hacks"
 MARK_SENT_ENDPOINT = "/hacks-sent-to-python"
-SYNCHRONIZE_HACKS = "/hacks/synchronize"
+# SYNCHRONIZE_HACKS = "/hacks/synchronize"
 SHOW_HACKS = "/hacks"
 GET_SUPERHACKS_CATEGORIES_ENDPOINT = "/superhacks/categories"
 CREATE_SUPERHACKS_ENDPOINT = "/superhacks/create"
@@ -56,7 +58,10 @@ def create_superhack(data):
 
 def get_combined_hacks():
     url = f"{BASE_URL}{HACKS_FOR_SUPERHACKS_ENDPOINT}"
-    response = requests.get(url, headers=HEADERS)
+    headers = HEADERS.copy()
+    headers['Cookie'] = COOKIE
+    response = requests.get(url, headers=headers)
+    print(response)
     response.raise_for_status()
     return response.json()
 
@@ -67,15 +72,17 @@ def save_combined_hacks(data):
             }
     """
     url = f"{BASE_URL}{SAVE_HACKS_COMB_ENDPOINT}"
-    response = requests.post(url, headers=HEADERS, json=data)
+    headers = HEADERS.copy()
+    headers['Cookie'] = COOKIE
+    response = requests.post(url, headers=headers, json=data)
     response.raise_for_status()
     return response.json()
 
-def synchronize_hacks():
-    url = f"{BASE_URL}{SYNCHRONIZE_HACKS}"
-    response = requests.post(url, headers=HEADERS)
-    response.raise_for_status()
-    return response.json()
+# def synchronize_hacks():
+#     url = f"{BASE_URL}{SYNCHRONIZE_HACKS}"
+#     response = requests.post(url, headers=HEADERS)
+#     response.raise_for_status()
+#     return response.json()
 
 def get_hack_by_id(hack_id):
     url = f"{BASE_URL}{SHOW_HACKS}/{hack_id}"

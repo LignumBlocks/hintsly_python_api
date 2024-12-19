@@ -25,7 +25,7 @@ PROMPTS_TEMPLATES = {
 }
 HACK_GROUPS = os.path.join(BASE_DIR, 'data', 'files', "hack_groups.bin")
 SUPERHACKS_REPORTS = os.path.join(BASE_DIR, 'data', 'files', 'superhacks')
-SUPERHACKS_OBJ_REPORTS = os.path.join(BASE_DIR, 'data', 'files', 'superhacks_obj')
+# SUPERHACKS_OBJ_REPORTS = os.path.join(BASE_DIR, 'data', 'files', 'superhacks_obj')
 checked_groups_json = os.path.join(BASE_DIR, 'data', 'files', 'checked_groups.json')
 
 def prepare_data_for_clustering(data_from_pinecone: Dict[str, Dict[str, dict|list]]) -> Tuple[np.ndarray, list, list]:
@@ -94,7 +94,7 @@ def check_feasibility(hack_descriptions: str):
             return json_result
         except (Exception) as e:  #Catch more general exceptions
             print(f"Error during LLM call or JSON parsing (attempt {retries+1}/{3}): {e}")
-            print(cleaned_string)
+            if cleaned_string: print(cleaned_string)
             retries += 1
 
 def superhack_structure(hack_descriptions: str, superhack_analysis: str):
@@ -111,7 +111,7 @@ def superhack_structure(hack_descriptions: str, superhack_analysis: str):
             return json_result
         except (Exception) as e:  #Catch more general exceptions
             print(f"Error during LLM call or JSON parsing (attempt {retries+1}/{3}): {e}")
-            print(cleaned_string)
+            if cleaned_string: print(cleaned_string)
             retries += 1
 
 # def generate_markdown(superhack_info, selected_hacks):
@@ -172,11 +172,11 @@ def generate_superhack(metadata, candidates_ids):
     explanation: str = json_result["explanation"]
     if superhack_feasible and len(combined_strategies) >= 2 :
         selected_hacks = [m for m in metadata if m['id'] in combined_strategies]
+        assert(len(combined_strategies) == len(selected_hacks))
         hack_descriptions = ""
         for hack in selected_hacks:
             # Format each hack's information
             hack_str = (
-                f"ID: {hack['id']}\n"
                 f"Title: {hack['title']}\n"
                 f"Resources Needed: {hack['resources_needed']}\n"
                 f"Expected Benefits: {hack['expected_benefits']}\n"
@@ -229,11 +229,11 @@ def classify_superhack(superhack_info: dict):
                 json_result = json.loads(cleaned_string)
             except (Exception) as e:  #Catch more general exceptions
                 print(f"Error during LLM call or JSON parsing (attempt {retries+1}/{3}): {e}")
-                print(cleaned_string)
+                if cleaned_string: print(cleaned_string)
             retries += 1
         
         if class_data['type'] == 'single_cat':
-            print(json_result)
+            # print(json_result)
             cat_name = json_result["category"]
             cat_id = core.SUPERHACKS_CATEGORIES_IDS.get(cat_name, None)
             if cat_id:
@@ -243,7 +243,7 @@ def classify_superhack(superhack_info: dict):
                     if not cat_id in superhack_info["category_ids"]:
                         superhack_info["category_ids"].append(cat_id)
         else:
-            print(json_result)
+            # print(json_result)
             for cat in json_result:
                 cat_name = cat["category"]
                 cat_id = core.SUPERHACKS_CATEGORIES_IDS.get(cat_name, None)
@@ -253,7 +253,7 @@ def classify_superhack(superhack_info: dict):
                     else:
                         if not cat_id in superhack_info["category_ids"]:
                             superhack_info["category_ids"].append(cat_id)
-        print(superhack_info['category_ids'])
+        # print(superhack_info['category_ids'])
         # superhack_info[class_name] = [json_result] if class_data['type'] == 'single_cat' else json_result
 
     return superhack_info
@@ -273,8 +273,12 @@ def save_superhack(superhack_info: dict):
         "hack_ids": [ int(id) for id in superhack_info["combined_strategies"]],
         "category_ids": superhack_info['category_ids']
     }
-    print(f"Create SuperHack in database: {data}")
-    api.create_superhack(data)
+    filename = os.path.join(SUPERHACKS_REPORTS, f"superhack_{len(os.listdir(SUPERHACKS_REPORTS))+1}.md")
+    with open(filename, "w") as f:
+        f.write(f"{data}")
+    print(f"Superhack report saved to: {filename}")
+    # print(f"Create SuperHack in database: {data['title']}")
+    # api.create_superhack(data)
 
 # def save_superhack(superhack_info: dict, metadata:List[dict]):
 #     selected_hacks = [m for m in metadata if m['id'] in superhack_info['combined_strategies']]
@@ -396,8 +400,8 @@ def pipeline1():
     else:
         print("Requesting combined hacks from db:")
         data = api.get_combined_hacks()
-        print(data)
-        checked_groups = data['data']
+        checked_groups = data['combined_hack']['data']
+        print(checked_groups)
     
     for group_key, group_data in hack_groups.items():
         vectors, ids, metadata = prepare_data_for_clustering(group_data)
@@ -417,20 +421,28 @@ def pipeline1():
 
                 print(f"generate_superhack for group {group}")
                 is_superhack, super_hack_fields = generate_superhack(metadata, group)
-                used_hacks = sorted(super_hack_fields['combined_strategies'])
                 
                 if is_superhack:
+                    used_hacks = sorted(super_hack_fields['combined_strategies'])
+                    if used_hacks in checked_groups["sh_comb"]: 
+                        print(f"Group {used_hacks} already formed another SuperHack. Skipping")
+                        continue
+                    elif used_hacks in checked_groups["failed_comb"]:
+                        print(f"Group {group} already failed to form a SuperHack. Skipping")
+                        continue
+                    else: print(f"Group {used_hacks} has not been used, adding new SuperHack from them")
+
                     super_hack_fields = classify_superhack(super_hack_fields)
                     save_superhack(super_hack_fields)
                 
-                key = "sh_comb" if is_superhack else "failed_comb"
-                if group == used_hacks:
-                    checked_groups[key].append(group)
-                else:
-                    if used_hacks not in checked_groups:
-                        checked_groups[key].append(used_hacks)
+                    if group == used_hacks:
+                        checked_groups["sh_comb"].append(group)
+                    else:
+                        checked_groups["failed_comb"].append(group)
+                        checked_groups["sh_comb"].append(used_hacks)
+                else: 
                     checked_groups["failed_comb"].append(group)
-                
+
                 with open(checked_groups_json, 'w') as f:
                     json.dump(checked_groups, f, indent=4)
                 api.save_combined_hacks({ "data": checked_groups  })
