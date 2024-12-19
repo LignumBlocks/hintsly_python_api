@@ -21,6 +21,10 @@ Expected Results: An overview of the financial improvements, gains, or efficienc
 
 Risks and Mitigation: A discussion of potential risks or drawbacks, and recommended strategies to mitigate or avoid these issues.
 
+The result will be read directly by a user, keep that in mind. The style should be in 2nd person. Adapt examples and terminology to the USA. Align with current laws and regulations in the USA and specific states. Do not include location-specific programs that are limited to other countries.
+Write it like a Medium post about financial strategies advices.
+Never use numbers or IDs to reference the strategies. Reference the strategies by the title. This will be read by a user that does not know what an id is.
+
 You must output only a JSON object with the following fields. All the fields, except the title, should have the text in markdown format with bold (**) to highlight ideas and lists (-) if necessary :
 
 {{

@@ -14,8 +14,8 @@ Determine whether some or all of the given strategies can be combined to form a 
 
 You must output a single JSON object with the following fields:
 {{
-    "analysis": "<A descriptive analysis (string) explaining whether a SuperHack is feasible, identifying points of conflict or synergy, and reasoning behind the chosen combination.>"
-    "superhack_feasible": A boolean (true or false) indicating if a SuperHack can be formed.
-    "combined_strategies": A list of the IDs of the strategies you recommend combining. If no combination is possible, return an empty list.
-    "explanation": "<A step-by-step explanation (string) of how to integrate the selected strategies into a cohesive SuperHack, detailing the order of operations, how resources flow between steps, and what actions to take to achieve multiplicative benefits. Never reference a hack by its id, only by name. This field will be read by a user that does not know what an id is.>"
+    "analysis": "<A descriptive analysis (string) explaining whether a SuperHack is feasible, identifying points of conflict or synergy, and reasoning behind the chosen combination.>",
+    "superhack_feasible": <A boolean (true or false) indicating if a SuperHack can be formed.>,
+    "combined_strategies": <A list of the IDs of the strategies you recommend combining. If no combination is possible, return an empty list. Example: ['21', '32', '12', '2']>,
+    "explanation": "<A step-by-step explanation (string) of how to integrate the selected strategies into a cohesive SuperHack, detailing the order of operations, how resources flow between steps, and what actions to take to achieve multiplicative benefits. In this explanation reference a hack by its name. This field will be read by a user that does not know what an id is.>"
 }}
